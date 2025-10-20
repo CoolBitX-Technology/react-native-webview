@@ -14,6 +14,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.app.AlertDialog;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -37,6 +38,8 @@ import android.webkit.CookieSyncManager;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+
+import java.net.URL;
 
 public class RNCWebViewClient extends WebViewClient {
     private static String TAG = "RNCWebViewClient";
@@ -181,12 +184,12 @@ public class RNCWebViewClient extends WebViewClient {
         String topWindowUrl = webView.getUrl();
         String failingUrl = error.getUrl();
 
-        // Cancel request after obtaining top-level URL.
-        // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
-        // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
-        handler.cancel();
-
         if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
+            // Cancel request after obtaining top-level URL.
+            // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
+            // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
+            handler.cancel();
+
             // If error is not due to top-level navigation, then do not call onReceivedError()
             Log.w(TAG, "Resource blocked from loading due to SSL error. Blocked URL: "+failingUrl);
             return;
@@ -223,12 +226,25 @@ public class RNCWebViewClient extends WebViewClient {
 
         description = descriptionPrefix + description;
 
-        this.onReceivedError(
-                webView,
-                code,
-                description,
-                failingUrl
-        );
+        // --- Show an AlertDialog to let the user choose whether to proceed ---
+        final int finalCode = code;
+        final String finalDescription = description;
+        final String finalMessage = "Attackers may attempt to steal your information from " + getDomainFromUrl(failingUrl) + " (e.g., passwords, messages, or credit card details)."
+            + "\n\nThis could be due to a misconfiguration or an intercepted connection. Continuing is unsafe."
+            + "\n\n" + finalDescription;
+        AlertDialog.Builder builder = new AlertDialog.Builder(webView.getContext());
+        builder.setTitle("⚠️ Your connection is not private");
+        builder.setMessage(finalMessage);
+        builder.setCancelable(false);
+        builder.setPositiveButton("Cancel", (dialog, which) -> {
+            handler.cancel(); // Cancel the request
+            // Only call onReceivedError here since this represents an actual load failure
+            this.onReceivedError(webView, finalCode, finalDescription, failingUrl);
+        });
+        builder.setNegativeButton("Continue", (dialog, which) -> {
+            handler.proceed(); // Proceed with loading
+        });
+        builder.show();
     }
 
     @Override
@@ -337,5 +353,15 @@ public class RNCWebViewClient extends WebViewClient {
 
     public void setProgressChangedFilter(RNCWebView.ProgressChangedFilter filter) {
         progressChangedFilter = filter;
+    }
+
+    private String getDomainFromUrl(String urlString) {
+        try {
+            URL url = new URL(urlString);
+            return url.getHost(); // 取得 domain，例如 "example.com"
+        } catch (Exception e) {
+            e.printStackTrace();
+            return urlString; // 如果解析失敗就回原 URL
+        }
     }
 }
