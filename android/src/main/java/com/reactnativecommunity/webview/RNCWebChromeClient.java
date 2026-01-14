@@ -158,14 +158,11 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
         ArrayList<String> requestedAndroidPermissions = new ArrayList<>();
         for (String requestedResource : request.getResources()) {
             String androidPermission = null;
-            String requestPermissionIdentifier = null;
 
             if (requestedResource.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
                 androidPermission = Manifest.permission.RECORD_AUDIO;
-                requestPermissionIdentifier = "microphone";
             } else if (requestedResource.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
                 androidPermission = Manifest.permission.CAMERA;
-                requestPermissionIdentifier = "camera";
             } else if(requestedResource.equals(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)) {
                 if (mAllowsProtectedMedia) {
                   grantedPermissions.add(requestedResource);
@@ -180,36 +177,43 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
                   androidPermission = PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID;
                 }
             }
-            Uri originUri = request.getOrigin();
-            String host = originUri.getHost();
+
             // TODO: RESOURCE_MIDI_SYSEX, RESOURCE_PROTECTED_MEDIA_ID.
-            String alertMessage = String.format("Allow " + host  + " to use your " + requestPermissionIdentifier + "?");
             if (androidPermission != null) {
                 if (ContextCompat.checkSelfPermission(this.mWebView.getThemedReactContext(), androidPermission) == PackageManager.PERMISSION_GRANTED) {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(this.mWebView.getContext());
-                    builder.setMessage(alertMessage);
-                    builder.setCancelable(false);
-                    String finalAndroidPermission = androidPermission;
-                    builder.setPositiveButton("Allow", (dialog, which) -> {
-                        permissionRequest = request;
-                        grantedPermissions.add(finalAndroidPermission);
-                        requestPermissions(grantedPermissions);
-                    });
-                    builder.setNegativeButton("Don't allow", (dialog, which) -> {
-                        request.deny();
-                    });
-                    AlertDialog alertDialog = builder.create();
-                    alertDialog.show();
-                    //Delay making `allow` clickable for 500ms to avoid unwanted presses.
-                    Button posButton = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE);
-                    posButton.setEnabled(false);
-                    this.runDelayed(() -> posButton.setEnabled(true), 500);
+                    grantedPermissions.add(requestedResource);
                 } else {
                     requestedAndroidPermissions.add(androidPermission);
                 }
             }
         }
 
+        if (this.shouldShowRequestPermissionDialog(grantedPermissions)) {
+            String alertMessage = this.getRequestPermissionAlertMessage(request, grantedPermissions);
+
+            this.showRequestPermissionDialog(
+                    alertMessage,
+                    (dialog, which) -> {
+                        this.grantOrRequestPermission(request, requestedAndroidPermissions);
+                    },
+                    (dialog, which) -> {
+                        request.deny();
+                    });
+        } else {
+            this.grantOrRequestPermission(request, requestedAndroidPermissions);
+        }
+    }
+
+    // CW-22083: 如果網頁要求麥克風或攝影機權限，就顯示權限請求對話框。
+    // 參數只需要傳入已經被授權的權限即可。未授權的權限會由手機系統的權限請求對話框處理。
+    private boolean shouldShowRequestPermissionDialog(List<String> grantedPermissions) {
+        return grantedPermissions.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) ||
+                grantedPermissions.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
+    }
+
+    // 如果 requestedAndroidPermissions 為空，表示手機系統已經給予所有權限給 app。app 可以直接 grant 權限給 webview。
+    // 如果 requestedAndroidPermissions 不為空，表示 app 還需要向手機系統請求權限，後續會有 listener 會再 grant 權限給 webview。
+    private void grantOrRequestPermission(PermissionRequest request, List<String> requestedAndroidPermissions) {
         // If all the permissions are already granted, send the response to the WebView synchronously
         if (requestedAndroidPermissions.isEmpty()) {
             if (!grantedPermissions.isEmpty()) {
@@ -224,6 +228,51 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
         this.permissionRequest = request;
 
         requestPermissions(requestedAndroidPermissions);
+    }
+
+    private String getDisplayHostName(PermissionRequest request) {
+        try {
+            Uri originUri = request.getOrigin();
+            return originUri.getHost(); 
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String getRequestPermissionAlertMessage(PermissionRequest request, List<String> permissions) {        
+        List<String> permissionNames = new ArrayList<>();
+        for (String permission : permissions) {
+            switch (permission) {
+                case PermissionRequest.RESOURCE_AUDIO_CAPTURE:
+                    permissionNames.add("microphone");
+                    break;
+                case PermissionRequest.RESOURCE_VIDEO_CAPTURE:
+                    permissionNames.add("camera");
+                    break;
+                default:
+                    // Skip unknown permissions, just handle audio & video
+                    break;
+            }
+        }
+
+        String host = this.getDisplayHostName(request);
+        String permissionNamesJoined = String.join(" and ", permissionNames);
+
+        return String.format("Allow " + host  + " to use your " + permissionNamesJoined + "?");
+    }   
+
+    private void showRequestPermissionDialog(String alertMessage, DialogInterface.OnClickListener onAllow, DialogInterface.OnClickListener onDeny) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this.mWebView.getContext());
+        builder.setMessage(alertMessage);
+        builder.setCancelable(false);
+        builder.setPositiveButton("Allow", onAllow);
+        builder.setNegativeButton("Don't allow", onDeny);
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+        //Delay making `allow` clickable for 500ms to avoid unwanted presses.
+        Button posButton = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        posButton.setEnabled(false);
+        this.runDelayed(() -> posButton.setEnabled(true), 500);
     }
 
     private void runDelayed(Runnable function, long delayMillis) {
