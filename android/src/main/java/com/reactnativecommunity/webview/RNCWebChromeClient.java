@@ -89,8 +89,11 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
 
     protected boolean mHasOnOpenWindowEvent = false;
 
+    private GrantedPermissionManager grantedPermissionManager;
+
     public RNCWebChromeClient(RNCWebView webView) {
         this.mWebView = webView;
+        this.grantedPermissionManager = new GrantedPermissionManager();
     }
 
     @Override
@@ -188,12 +191,15 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
             }
         }
 
-        if (this.shouldShowRequestPermissionDialog(grantedPermissions)) {
-            String alertMessage = this.getRequestPermissionAlertMessage(request, grantedPermissions);
+        String host = this.getUrlHostSafely(request);
+
+        if (this.shouldShowRequestPermissionDialog(host, grantedPermissions)) {
+            String alertMessage = this.getRequestPermissionAlertMessage(host, grantedPermissions);
 
             this.showRequestPermissionDialog(
                     alertMessage,
                     (dialog, which) -> {
+                        grantedPermissionManager.add(host, grantedPermissions);
                         this.grantOrRequestPermission(request, requestedAndroidPermissions);
                     },
                     (dialog, which) -> {
@@ -206,9 +212,13 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
 
     // CW-22083: 如果網頁要求麥克風或攝影機權限，就顯示權限請求對話框。
     // 參數只需要傳入已經被授權的權限即可。未授權的權限會由手機系統的權限請求對話框處理。
-    private boolean shouldShowRequestPermissionDialog(List<String> grantedPermissions) {
-        return grantedPermissions.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) ||
+    private boolean shouldShowRequestPermissionDialog(String host, List<String> grantedPermissions) {
+        boolean isAudioOrVideo = grantedPermissions.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) ||
                 grantedPermissions.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE);
+        boolean hasUserSeenPermissionDialog = grantedPermissionManager.containsAll(
+                host,
+                grantedPermissions);
+        return isAudioOrVideo && !hasUserSeenPermissionDialog;
     }
 
     // 如果 requestedAndroidPermissions 為空，表示手機系統已經給予所有權限給 app。app 可以直接 grant 權限給 webview。
@@ -230,7 +240,7 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
         requestPermissions(requestedAndroidPermissions);
     }
 
-    private String getDisplayHostName(PermissionRequest request) {
+    private String getUrlHostSafely(PermissionRequest request) {
         try {
             Uri originUri = request.getOrigin();
             return originUri.getHost(); 
@@ -239,7 +249,7 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
         }
     }
 
-    private String getRequestPermissionAlertMessage(PermissionRequest request, List<String> permissions) {        
+    private String getRequestPermissionAlertMessage(String host, List<String> permissions) {        
         List<String> permissionNames = new ArrayList<>();
         for (String permission : permissions) {
             switch (permission) {
@@ -255,7 +265,6 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
             }
         }
 
-        String host = this.getDisplayHostName(request);
         String permissionNamesJoined = String.join(" and ", permissionNames);
 
         return String.format("Allow " + host  + " to use your " + permissionNamesJoined + "?");
