@@ -102,10 +102,6 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
         progressChangedFilter = new ProgressChangedFilter();
     }
 
-    public void setIgnoreErrFailedForThisURL(String url) {
-        mRNCWebViewClient.setIgnoreErrFailedForThisURL(url);
-    }
-
     public void setBasicAuthCredential(RNCBasicAuthCredential credential) {
         mRNCWebViewClient.setBasicAuthCredential(credential);
     }
@@ -479,7 +475,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
         @JavascriptInterface
         public void postMessage(String message) {
             if (mWebView.getMessagingEnabled()) {
-                mWebView.onMessage(message, mWebView.getUrl());
+                // Post to main thread because `mWebView.getUrl()` requires to be executed on main.
+                mWebView.post(() -> mWebView.onMessage(message, mWebView.getUrl()));
             } else {
                 FLog.w(TAG, "ReactNativeWebView.postMessage method was called but messaging is disabled. Pass an onMessage handler to the WebView.");
             }

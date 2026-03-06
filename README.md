@@ -34,11 +34,11 @@ Update the version in `package.json`:
 
 ```json
 {
-  "version": "13.13.4-cbx.6"
+  "version": "13.16.1-cbx.0"
 }
 ```
 
-**Example**: `13.13.4-cbx.5` → `13.13.4-cbx.6`
+**Example**: `13.13.4-cbx.6` → `13.16.1-cbx.0`
 
 ### 2. Publish to NPM
 
@@ -46,7 +46,7 @@ Update the version in `package.json`:
 yarn run publish:npm
 ```
 
-When prompted, enter the new version (e.g., `13.13.4-cbx.6`).
+When prompted, enter the new version (e.g., `13.16.1-cbx.0`).
 
 > **Note**: Two-factor authentication is required for NPM publishing.
 
