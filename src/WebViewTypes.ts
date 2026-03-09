@@ -55,6 +55,7 @@ interface ErrorState extends BaseState {
 
 export type State = NormalState | ErrorState;
 
+// oxlint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T;
 
 declare class NativeWebViewMacOSComponent extends Component<MacOSNativeWebViewProps> {}
@@ -88,13 +89,7 @@ export interface WebViewNativeProgressEvent extends WebViewNativeEvent {
 }
 
 export interface WebViewNavigation extends WebViewNativeEvent {
-  navigationType:
-    | 'click'
-    | 'formsubmit'
-    | 'backforward'
-    | 'reload'
-    | 'formresubmit'
-    | 'other';
+  navigationType: 'click' | 'formsubmit' | 'backforward' | 'reload' | 'formresubmit' | 'other';
   mainDocumentURL?: string;
 }
 
@@ -136,13 +131,11 @@ export interface WebViewOpenWindow {
 
 export type WebViewEvent = NativeSyntheticEvent<WebViewNativeEvent>;
 
-export type WebViewProgressEvent =
-  NativeSyntheticEvent<WebViewNativeProgressEvent>;
+export type WebViewProgressEvent = NativeSyntheticEvent<WebViewNativeProgressEvent>;
 
 export type WebViewNavigationEvent = NativeSyntheticEvent<WebViewNavigation>;
 
-export type ShouldStartLoadRequestEvent =
-  NativeSyntheticEvent<ShouldStartLoadRequest>;
+export type ShouldStartLoadRequestEvent = NativeSyntheticEvent<ShouldStartLoadRequest>;
 
 export type FileDownloadEvent = NativeSyntheticEvent<FileDownload>;
 
@@ -154,8 +147,7 @@ export type WebViewTerminatedEvent = NativeSyntheticEvent<WebViewNativeEvent>;
 
 export type WebViewHttpErrorEvent = NativeSyntheticEvent<WebViewHttpError>;
 
-export type WebViewRenderProcessGoneEvent =
-  NativeSyntheticEvent<WebViewRenderProcessGoneDetail>;
+export type WebViewRenderProcessGoneEvent = NativeSyntheticEvent<WebViewRenderProcessGoneDetail>;
 
 export type WebViewOpenWindowEvent = NativeSyntheticEvent<WebViewOpenWindow>;
 
@@ -182,6 +174,8 @@ export type CacheMode =
 
 export type AndroidLayerType = 'none' | 'software' | 'hardware';
 
+export type IndicatorStyleType = 'default' | 'black' | 'white';
+
 export interface WebViewSourceUri {
   /**
    * The URI to load in the `WebView`. Can be a local or remote file.
@@ -198,7 +192,7 @@ export interface WebViewSourceUri {
    * Additional HTTP headers to send with the request.
    * NOTE: On Android, this can only be used with GET requests.
    */
-  headers?: Object;
+  headers?: object;
 
   /**
    * The HTTP body to send with the request. This must be a valid
@@ -261,7 +255,7 @@ export interface WebViewNativeConfig {
    * Set props directly on the native component WebView. Enables custom props which the
    * original WebView doesn't pass through.
    */
-  props?: Object;
+  props?: object;
   /**
    * Set the ViewManager to use for communication with the native side.
    * @platform ios, macos
@@ -269,9 +263,7 @@ export interface WebViewNativeConfig {
   viewManager?: ViewManager;
 }
 
-export type OnShouldStartLoadWithRequest = (
-  event: ShouldStartLoadRequest
-) => boolean;
+export type OnShouldStartLoadWithRequest = (event: ShouldStartLoadRequest) => boolean;
 
 export interface BasicAuthCredential {
   /**
@@ -306,8 +298,8 @@ export interface CommonNativeWebViewProps extends ViewProps {
   onShouldStartLoadWithRequest: (event: ShouldStartLoadRequestEvent) => void;
   showsHorizontalScrollIndicator?: boolean;
   showsVerticalScrollIndicator?: boolean;
-  // TODO: find a better way to type this.
-
+  paymentRequestEnabled?: boolean;
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any
   source: any;
   userAgent?: string;
   /**
@@ -424,7 +416,7 @@ export interface IOSWebViewProps extends WebViewSharedProps {
 
   /**
    * If the value of this property is true, the scroll view stops on multiples
-   * of the scroll view’s bounds when the user scrolls.
+   * of the scroll view's bounds when the user scrolls.
    * The default value is false.
    * @platform ios
    */
@@ -660,13 +652,25 @@ export interface IOSWebViewProps extends WebViewSharedProps {
   pullToRefreshEnabled?: boolean;
 
   /**
-   * Boolean value that determines whether a pull to refresh gesture is
-   * available in the `WebView`. The default value is `false`.
-   * If `true`, sets `bounces` automatically to `true`
+   * Boolean value that determines whether the refresh control color is white or not.
+   * The default value is `false`, meaning the refresh control color will be the default.
    * @platform ios
    *
    */
   refreshControlLightMode?: boolean;
+
+  /**
+   * Determines the style of the scroll indicators. This property works the same
+   * as `indicatorStyle` on React Native's ScrollView.
+   * The default value is `'default'`.
+   *
+   * Possible values:
+   * - `'default'` - Default style (dark on light backgrounds, light on dark backgrounds)
+   * - `'black'` - Black scroll indicators
+   * - `'white'` - White scroll indicators
+   * @platform ios
+   */
+  indicatorStyle?: IndicatorStyleType;
 
   /**
    * Function that is invoked when the client needs to download a file.
@@ -689,9 +693,9 @@ export interface IOSWebViewProps extends WebViewSharedProps {
   /**
    * A Boolean value which, when set to `true`, indicates to WebKit that a WKWebView
    * will only navigate to app-bound domains. Once set, any attempt to navigate away
-   * from an app-bound domain will fail with the error “App-bound domain failure.”
+   * from an app-bound domain will fail with the error "App-bound domain failure."
    *
-   * Applications can specify up to 10 “app-bound” domains using a new
+   * Applications can specify up to 10 "app-bound" domains using a new
    * Info.plist key `WKAppBoundDomains`.
    * @platform ios
    */
@@ -786,7 +790,7 @@ export interface MacOSWebViewProps extends WebViewSharedProps {
 
   /**
    * If the value of this property is true, the scroll view stops on multiples
-   * of the scroll view’s bounds when the user scrolls.
+   * of the scroll view's bounds when the user scrolls.
    * The default value is false.
    * @platform macos
    */
@@ -1044,7 +1048,7 @@ export interface AndroidWebViewProps extends WebViewSharedProps {
 
   /**
    * Boolean value to control whether DOM Storage is enabled. Used only in
-   * Android.
+   * Android. The default value is `true`.
    * @platform android
    */
   domStorageEnabled?: boolean;
@@ -1145,6 +1149,14 @@ export interface AndroidWebViewProps extends WebViewSharedProps {
    * @platform android
    */
   allowsProtectedMedia?: boolean;
+
+  /**
+   * Function that is invoked when the `WebView` receives an SSL error for a sub-resource.
+   *
+   * @param event
+   * @platform android
+   */
+  onLoadSubResourceError?: (event: WebViewErrorEvent) => void;
 }
 
 export interface WebViewSharedProps extends ViewProps {
@@ -1177,7 +1189,7 @@ export interface WebViewSharedProps extends ViewProps {
   renderError?: (
     errorDomain: string | undefined,
     errorCode: number,
-    errorDesc: string
+    errorDesc: string,
   ) => ReactElement; // view to show if there's an error
 
   /**
@@ -1329,4 +1341,9 @@ export interface WebViewSharedProps extends ViewProps {
    * Enables WebView remote debugging using Chrome (Android) or Safari (iOS).
    */
   webviewDebuggingEnabled?: boolean;
+
+  /**
+   * Enables support for the Payment Request API for the WebView
+   */
+  paymentRequestEnabled?: boolean;
 }

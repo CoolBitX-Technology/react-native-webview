@@ -6,16 +6,17 @@ import WebView from 'react-native-webview';
 type Props = {};
 type State = {};
 
-export default class Alerts extends Component<Props, State> {
+export default class SslError extends Component<Props, State> {
   state = {};
 
   render() {
     return (
       <View style={{ flex: 1 }}>
         <WebView
-          enableApplePay={true}
-          source={{ uri: 'https://applepaydemo.apple.com/' }}
-          automaticallyAdjustContentInsets={false}
+          source={{ uri: 'https://badssl.com/' }}
+          onLoadSubResourceError={(event) => {
+            console.log('onLoadSubResourceError', event.nativeEvent.description);
+          }}
         />
       </View>
     );
